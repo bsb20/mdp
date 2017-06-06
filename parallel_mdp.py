@@ -3,26 +3,22 @@ from mdp_solvers import relative_value_iteration
 from mdp_solvers import value_iteration 
 from mdp_solvers import relative_value_lp
 
-
+import sys
 from numpy import isclose
 import pprint
 
 n=8
-lambd_1 = 5
-lambd_2 = 5
+lambd_1 = 7
+lambd_2 = 7
 mu_1 = 2
 mu_2 = 2
+cutoff = 100
 
 def generate_s(p):
     def s(k):
         return 1/((p/k)+ (1-p))
     return s
 
-p1 = .1
-s1 = generate_s(p1)
-p2 = .8
-s2 = generate_s(p2)
-cutoff = 100#0
 
 def equi_rate(n, i, s, mu):
     if n == 0 or i == 0:
@@ -69,10 +65,14 @@ def generate_mdp():
     return transitions, rewards, values
 
 if __name__ == "__main__":
+    p1 = float(sys.argv[1])
+    p2 = float(sys.argv[2])
+    s1 = generate_s(p1)
+    s2 = generate_s(p2)
+    print p1, p2
+
     transitions, rewards, values = generate_mdp()
-#    pprint.pprint(transitions)
-#    relative_value_iteration(rewards, values, (n,n), transitions, minimize=True)
-    hist, pol, iterations, initial_values = value_iteration(rewards, values, transitions, 1, minimize=True, limit=10000)
+    hist, pol, iterations, initial_values = value_iteration(rewards, values, transitions, 1, minimize=True, limit=5000)
     print "VALUE FUNCTION"
     print hist[-1]
     print "POLICY"
