@@ -10,24 +10,28 @@ import numpy as np
 epsilon = .000001
 #alpha = float(sys.argv[1])
 alpha = .99
-threshold = .001*alpha*(1-alpha)
+threshold = .000018
 
 rewards = {1:{"advertise": 4, "nothing": 6}, 2:{"research": -5, "nothing":-3}}
 transitions ={1:{"advertise": {1:.8, 2:.2}, "nothing": {1:.5,2:.5}}, 2:{"research": {1:.7, 2:.3}, "nothing":{1:.4,2:.6}}}
 values = {1:0, 2:0}
 
 
-def value_iteration(rewards, initial_values, transitions, alpha, minimize=False, limit=None):
-    history = [deepcopy(initial_values)]
+def value_iteration(rewards, initial_values, transitions, alpha, minimize=False, limit=None, keep_history = False):
+    if keep_history:
+        history = [deepcopy(initial_values)]
+    prev = deepcopy(initial_values)
     delta = 1
     iterations = 0
+    print threshold
     while delta > threshold and (limit is None or iterations <= limit):
         print iterations, ":", delta
         iterations += 1
         policy = {}
         values = {}
-        prev = history[-1]
         delta = 0
+        max_delta = None
+        min_delta = float('inf')
         for state in rewards:
             moves = {}
             for action in rewards[state]:
@@ -47,12 +51,19 @@ def value_iteration(rewards, initial_values, transitions, alpha, minimize=False,
                     if moves[action] + epsilon > current_value:
                         current_move = action 
                         current_value = moves[action]
-            if abs(current_value - prev[state]) > delta:
-                delta = abs(current_value - prev[state])
+            if current_value - prev[state] > max_delta:
+                max_delta = current_value - prev[state]
+            if current_value - prev[state] < min_delta:
+                min_delta = current_value - prev[state]
             policy[state] = current_move
             values[state] = current_value
-        history.append(values)
-    return history, policy, iterations, initial_values
+        prev = values
+        if keep_history:
+            history.append(values)
+        delta = max_delta - min_delta
+    if not keep_history:
+        history = [prev]
+    return history, policy, iterations, initial_values, max_delta
 
 def plot_value_iteration(history):
     iterations = []
@@ -103,10 +114,15 @@ def policy_iteration(rewards, initial_values, transitions, alpha):
 def evaluate_policy(policy, initial_values, rewards, transitions, alpha):
     values = initial_values
     delta = 1
+    iterations = 0
     while delta > threshold:
         prev = values
         values = {}
+        print iterations, ":", delta
+        iterations += 1
         delta = 0
+        max_delta = None
+        min_delta = float('inf')
         for state in rewards:
             moves = {}
             for action in rewards[state]:
@@ -117,10 +133,13 @@ def evaluate_policy(policy, initial_values, rewards, transitions, alpha):
                 moves[action] = r + discounted_future_value
             current_move = policy[state]
             current_value = moves[current_move]
-            if abs(current_value - prev[state]) > delta:
-                delta = abs(current_value - prev[state])
+            if current_value - prev[state] > max_delta:
+                max_delta = current_value - prev[state]
+            if current_value - prev[state] < min_delta:
+                min_delta = current_value - prev[state]
             values[state] = current_value
-    return values
+        delta = max_delta - min_delta
+    return values, max_delta
 
 def lp(rewards, transitions, alpha):
     c = []

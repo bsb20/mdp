@@ -10,59 +10,72 @@ import pprint
 import matplotlib
 import sys
 
-def get_mdp_rates(mdp_policy, p1, p2, lambd):
-    mdp_rates = []
-    for i, row in enumerate(mdp_policy):
-        rates_row = [get_rate(a, i, j, p1, p2, lambd, lambd) for j, a in enumerate(row)]
-        mdp_rates.append(rates_row)
-    return mdp_rates
+import argparse
 
 if __name__ == "__main__":
-    print "HERE"
+    parser = argparse.ArgumentParser(description="compare policies")
+    parser.add_argument("--l1", type = str, default=5)
+    parser.add_argument("--l2", type = str, default=5)
+    parser.add_argument("--leq", action="store_true")
+    parser.add_argument("action", type=str, default="heat")
+    parser.add_argument("policy1", type=str, default="greedy")
+    parser.add_argument("policy2", type=str, default="opt")
+    args = parser.parse_args()
     diff = {}
-    if len(sys.argv) >= 2:
-        lambd = int(sys.argv[1])
-        suffix = "_{0}_{0}".format(lambd)
-    else:
-        lambd = 5
-        suffix = ""
-    for p1 in np.arange(.1,1,.1):
-        for p2 in np.arange(.1,1,.1):
-            if p1 < p2:
-                greedy_rates = parse("greedy{0}/greedy_{1}_{2}.txt".format(suffix, int(10*p1),int(10*p2)), "RATES")
-                mdp_policy = parse("opt{0}/{1}_{2}.txt".format(suffix, int(10*p1),int(10*p2)), "POLICY")
-                mdp_rates = []
-                for i, row in enumerate(mdp_policy):
-                    rates_row = [get_rate(a, i, j, p1, p2, lambd, lambd) for j, a in enumerate(row)]
-                    mdp_rates.append(rates_row)
-                print "p={0}, p={1}".format(p1,p2)
-                print "GREEDY"
-                pprint.pprint([["{0:0.3f}".format(y) for y in x] for x in greedy_rates])
-                print "MDP"
-                pprint.pprint([["{0:0.3f}".format(y) for y in x] for x in mdp_rates])
-                if mdp_rates == greedy_rates:
-                    score = 0
+    suffix = "_{0}_{1}".format(args.l1, args.l2)
+    args.l1 = float(args.l1)
+    args.l2 = float(args.l2)
+    if args.action == "avg":
+        for p1 in np.arange(.1,1,.1):
+            for p2 in np.arange(.1,1,.1):
+                p1 = round(p1, 2)
+                p2 = round(p2, 2)
+                if (not args.leq and p1 < p2) or (args.leq and p1 <= p2):
+                    policy1_avg = parse("{0}{1}/{0}_{2}_{3}.txt".format(args.policy1, suffix, int(10*p1),int(10*p2)), "AVG")
+                    policy2_avg = parse("{0}{1}/{0}_{2}_{3}.txt".format(args.policy2, suffix, int(10*p1),int(10*p2)), "AVG")
+
+                    print p1, p2, ":"
+                    print args.policy1, policy1_avg, args.policy2, policy2_avg, "Diff", float(policy1_avg) - float(policy2_avg), "Percentage Diff", 100*(float(policy1_avg) - float(policy2_avg))/policy2_avg
+    if args.action == "heat":
+        for p1 in np.arange(.1,1,.1):
+            for p2 in np.arange(.1,1,.1):
+                p1 = round(p1, 2)
+                p2 = round(p2, 2)
+                if (not args.leq and p1 < p2) or (args.leq and p1 <= p2):
+                    policy1_avg = parse("{0}{1}/{0}_{2}_{3}.txt".format(args.policy1, suffix, int(10*p1),int(10*p2)), "AVG")
+                    policy2_avg = parse("{0}{1}/{0}_{2}_{3}.txt".format(args.policy2, suffix, int(10*p1),int(10*p2)), "AVG")
+                    diff[(p1, p2)] = 100*(float(policy1_avg) - float(policy2_avg))/policy2_avg
+                    diff[(p2, p1)] = 100*(float(policy1_avg) - float(policy2_avg))/policy2_avg
+                if p1 == p2 and not args.leq:
+                    diff[(p1, p2)] = 0
+        data = []
+        max_pct = 0
+        for p1 in np.arange(.1,1,.1):
+            row = []
+            for p2 in np.arange(.1,1,.1):
+                p1 = round(p1, 2)
+                p2 = round(p2, 2)
+                if p1 == p2:
+                    print p1, p2
+                    print diff[(p1,p2)]
+                    row.append(diff[(p1,p2)] if args.leq else 0)
+                elif p1 < p2:
+                    if diff[(p1,p2)] > max_pct:
+                        max_pct = diff[(p1,p2)]
+                    row.append(diff[(p1,p2)])
                 else:
-                    score = 0
-                    for i, v1 in enumerate(mdp_rates):
-                        for j, v2 in enumerate(v1):
-                            score += abs(v2 - greedy_rates[i][j])
-                diff[(p1, p2)] = score
-                diff[(p2, p1)] = score
-            if p1 == p2:
-                diff[(p1, p2)] = 0
-    data = []
-    for p1 in np.arange(.1,1,.1):
-        row = []
-        for p2 in np.arange(.1,1,.1):
-            print p1, p2
-            if p1 == p2:
-                row.append(0)
-            elif p1 < p2:
-                row.append(diff[(p1,p2)])
-            else:
-                row.append(diff[(p2,p1)])
-        data.append(row)
-    heatmap = plt.pcolor(data, cmap=matplotlib.cm.Blues)
-    plt.show()
+                    row.append(diff[(p2,p1)])
+            data.append(row)
+        fig, ax = plt.subplots()
+        heatmap = plt.pcolor(data, cmap=plt.cm.Reds, vmin=0, vmax=65)
+        labels = [float(x)/10 for x in range(1,10)]
+        ax.set_yticks(np.arange(len(data)) + 0.5, minor=False)
+        ax.set_xticks(np.arange(len(data[0])) + 0.5, minor=False)
+        ax.set_xticklabels(labels, minor=False, fontsize=16)
+        ax.set_yticklabels(labels, minor=False, fontsize=16)
+        ax.set_xlabel("$p_1$", fontsize=18)
+        ax.set_ylabel("$p_2$", fontsize=18)
+        plt.colorbar().ax.tick_params(labelsize=16) 
+        plt.savefig("figures/{0}_v_{1}.png".format(args.policy1, args.policy2), bbox_inches='tight',dpi=100)
+        plt.show()
 

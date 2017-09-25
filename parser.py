@@ -20,6 +20,7 @@ def matrix(source, dim,string=False):
 def parse(fname, keyword, display=8, output=False):
     f = open(fname)
     prev = ""
+    avg = float("inf")
     for line in f:
         if prev == "VALUE FUNCTION" and keyword == prev:
             values = ast.literal_eval(line.strip())
@@ -39,7 +40,13 @@ def parse(fname, keyword, display=8, output=False):
             if output:
                 pprint.pprint(matrix(rates, display))
             return d
+        if prev == "AVG" and keyword == prev:
+            new = float(line.strip())
+            if new < avg:
+                avg = new
         prev = line.strip()
+    if keyword == "AVG":
+        return avg
     
 
 

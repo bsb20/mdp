@@ -8,10 +8,6 @@ from numpy import isclose
 import pprint
 
 n=8
-lambd_1 = 7
-lambd_2 = 7
-mu_1 = 2
-mu_2 = 2
 cutoff = 100
 
 def generate_s(p):
@@ -28,7 +24,7 @@ def equi_rate(n, i, s, mu):
     else:
         return i*s(float(n)/i)*mu
 
-def generate_mdp():
+def generate_mdp(lambd_1, lambd_2, s1, s2, mu_1, mu_2):
     rewards = {}
     transitions = {}
     values = {}
@@ -39,6 +35,8 @@ def generate_mdp():
         for j in range(cutoff+1):
             values[(i,j)] = 0
             actions = range(n+1)
+            if i+j:
+                actions.append(i*(float(n)/(i+j)))
             probabilities = {}
             rewards[(i,j)] = {}
             for a in actions:
@@ -67,17 +65,22 @@ def generate_mdp():
 if __name__ == "__main__":
     p1 = float(sys.argv[1])
     p2 = float(sys.argv[2])
+    lambd_1 = float(sys.argv[3])
+    lambd_2 = float(sys.argv[4])
+    mu_1 = float(sys.argv[5])
+    mu_2 = float(sys.argv[6])
     s1 = generate_s(p1)
     s2 = generate_s(p2)
     print p1, p2
 
-    transitions, rewards, values = generate_mdp()
-    hist, pol, iterations, initial_values = value_iteration(rewards, values, transitions, 1, minimize=True, limit=5000)
+    transitions, rewards, values = generate_mdp(lambd_1, lambd_2, s1, s2, mu_1, mu_2)
+    hist, pol, iterations, initial_values, g = value_iteration(rewards, values, transitions, 1, minimize=True, limit = None)
     print "VALUE FUNCTION"
     print hist[-1]
     print "POLICY"
     print pol
-
+    print "AVG"
+    print g
 
 
 
